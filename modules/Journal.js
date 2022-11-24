@@ -1,10 +1,126 @@
+/**
+ * @typedef User Объект данных пользователя на портале
+ * @prop {number} id ID на портале
+ * @prop {string} first_name Имя пользователя
+ * @prop {string} last_name Фамилия пользователя
+ * @prop {string} birthday Дата рождения в формате `YYYY-MM-DD`
+ * @prop {string} group Обозначение группы, в которой обучается пользователь
+ * @prop {string} avatar Ссылка на изображение аватара
+ * @prop {number} rating Рейтинг на портале (от 0 до 100)
+ */
+/**
+ * @typedef Subject Объект, описывающий учебный предмет для некой группы
+ * @prop {[number,string]} subject Идентификатор и название предмета
+ * @prop {[(number|null),string]} teacher Идентификатор и полное имя преподавателя
+ * @prop {number} semester Номер семестра
+ * @prop {string} group Обозначение группы
+ * @prop {number} lesson_count Количество прошедших пар
+ * @prop {Mark[]} marks Массив оценок всей группы
+ */
+/**
+ * @typedef Mark Объект, описывающий одну оценку в журнале
+ * @prop {string} date Дата выставления оценки в формате `DD.MM`
+ * @prop {number} stud Идентификатор связанного студента
+ * @prop {'audit'|'lecture'|'practice'|'unknown'|'attest'|'exam'} type Тип занятия
+ * @prop {number|'Н'} mark Значение оценки. При пропуске занятия ставится `"Н"`
+ */
+/**
+ * @typedef EditedMark Объект, описывающий измененную оценку в журнале (см. {@link compareMarks|`compareMarks`})
+ * @prop {string} date Дата выставления оценки в формате `DD.MM`
+ * @prop {number} stud Идентификатор связанного студента
+ * @prop {'audit'|'lecture'|'practice'|'unknown'|'attest'|'exam'} type Тип занятия
+ * @prop {{before:(number|'Н'),after:(number|'Н')}} mark Значение оценки до и после изменения. При пропуске занятия ставится `"Н"`
+ */
+/**
+ * @typedef MarksComparison Объект с результатом сравнения оценок (см. {@link compareMarks|`compareMarks`})
+ * @prop {Mark[]} added Новые оценки
+ * @prop {Mark[]} removed Удаленные оценки
+ * @prop {EditedMark[]} edited Измененные оценки
+ */
+/**
+ * @typedef Schedule Объект с расписанием занятий
+ * @prop {string} date Дата, на которую актуально расписание, в формате `DD.MM.YYYY`
+ * @prop {(Lesson|Holiday)[]} lessons Список пар на данную дату
+ */
+/**
+ * @typedef Lesson Объект с данными занятия в расписании
+ * @prop {number} lesson Номер пары от начала дня (от 1 до 8)
+ * @prop {string} time Время начала и конца пары *(не используется)*
+ * @prop {string} subject Название предмета
+ * @prop {string} teacher Фамилия и инициалы преподавателя
+ * @prop {string} auditory Место и номер аудитории
+ * @prop {string} note Примечание к занятию
+ */
+/**
+ * @typedef Holiday Объект, описывающий праздничный день
+ * @prop {'holiday'} type Тип события
+ * @prop {string} name Название праздника
+ */
+/**
+ * @typedef Absence Объект с данными о пропусках одного студента
+ * @prop {number} id Идентификатор студента
+ * @prop {number} percent Показатель посещаемости (в процентах)
+ * @prop {[number,number]} totals Количество пропусков и общее число пар
+ * @prop {number} place Место в групповом зачете по посещаемости (от 1)
+ */
+/**
+ * @typedef News Объект, описывающий одну новостную запись
+ * @prop {number} id Идентификатор поста
+ * @prop {string} author Фамилия и инициалы автора поста
+ * @prop {number} author_id Идентификатор автора поста
+ * @prop {string} title Название поста
+ * @prop {string} date Дата публикации поста в формате `DD.MM.YYYY`
+ * @prop {number} views Количество просмотров
+ * @prop {number} likes Количество отметок "Нравится"
+ * @prop {number} comments Количество комментариев
+ */
+/**
+ * Объект с дистанционными парами на один день
+ * @typedef {{[subject:string]:ProvisionLesson[]}} Provision
+ */
+/**
+ * @typedef ProvisionLesson Объект, содержащий данные об одной дистанционной паре
+ * @prop {string} hash Уникальный идентификатор занятия
+ * @prop {string} theme Тема занятия
+ */
+/**
+ * @typedef Credentials Объект с данными для входа на портал
+ * @prop {string} login Логин пользователя
+ * @prop {string} password Пароль пользователя
+ */
+/**
+ * @typedef Attachment Объект с данными файла
+ * @prop {string} name Оригинальное название файла
+ * @prop {string} type Формат (расширение) файла
+ * @prop {string} hash Название файла в кеше
+ * @prop {string|null} file_id Идентификатор файла в хранилище Telegram
+ * @prop {number} cached_at Таймштамп занесения в кеш
+ */
+
 import { readFileSync, writeFileSync } from 'fs'
 import fetch from 'node-fetch'
 import parser from 'node-html-parser'
-import Util from './Util.js'
+import * as Static from './Static.js'
+import * as Util from './Util.js'
 
-export const SELF_ID = '[УДАЛЕНО]'
+const CookieManager = {}
+CookieManager.get = function(id) {
+    const linked = JSON.parse(readFileSync('./data/linked.json', 'utf8'))
+    return linked.find(f => f.tg == id).cookie
+}
+CookieManager.set = function(id, cookie) {
+    const linked = JSON.parse(readFileSync('./data/linked.json', 'utf8'))
+    linked.find(f => f.tg == id).cookie = cookie
+    writeFileSync('./data/linked.json', JSON.stringify(linked), 'utf8')
+}
+
+/** Собственный ID на портале */
+export const SELF_ID = parseInt(Util.getConfig('SELF_ID_UN'))
+
+/** Главная кука для всех запросов */
 export let COOKIE = null
+
+/** Типы пар */
 export const WORK_TYPES = {
     audit: ['занятие', '📝'],
     lecture: ['лекцию', '📚'],
@@ -13,6 +129,8 @@ export const WORK_TYPES = {
     attest: ['аттестацию', '🧮'],
     exam: ['экзамен', '💮']
 }
+
+/** Расшифровка оценок */
 export const MARK_TYPES = {
     1: ['❤️', 'плохо'],
     2: ['🧡', 'неудовлетворительно'],
@@ -23,15 +141,33 @@ export const MARK_TYPES = {
     UNK: ['🖤', '?']
 }
 
+/**
+ * Вычисляет семестр по году поступления
+ * @param {number} first_year Год поступления
+ * @returns Текущий семестр
+ */
 export function getSemester(first_year) {
     const today = new Date()
     let sem = (today.getUTCFullYear() - first_year) * 2
     if (today.getUTCMonth() >= 7) sem++
     return sem
 }
+
+/**
+ * Вычисляет текущий семестр по обозначению группы
+ * @param {string} group Обозначение группы
+ * @returns Текущий семестр
+ */
 export function getSemesterByGroup(group) {
     return getSemester(`20${group.match(/[а-я0-9]+-(\d+)/i)[1]}`)
 }
+
+/**
+ * Шифрует логин и пароль пользователя от портала
+ * @param {string} login Логин пользователя
+ * @param {string} password Пароль пользователя
+ * @returns {string} Зашифрованная строка ("секрет")
+ */
 export function encodeCredentials(login, password) {
     const key_buffer = Buffer.from(login)
     const pass_buffer = Buffer.from(password)
@@ -40,6 +176,12 @@ export function encodeCredentials(login, password) {
     const encoded_key = Buffer.from(key_buffer.map(m => m ^ 42))
     return encoded_key.reverse().toString('base64url') + '.' + encoded.toString('base64url')
 }
+
+/**
+ * Дешифрует логин и пароль пользователя от портала
+ * @param {string} secret Секрет логина и пароля
+ * @returns {Credentials} Объект с логином и паролем
+ */
 export function decodeCredentials(secret) {
     const [key, encd] = secret.split('.')
     const encoded_key = Buffer.from(key, 'base64url').reverse()
@@ -51,53 +193,146 @@ export function decodeCredentials(secret) {
         password: output.subarray(0, -key_buffer.length).toString('utf8')
     }
 }
-export function checkCookie() {
+
+/**
+ * Проверяет состояние куки указанного пользователя и при необходимости сразу ее обновляет
+ * @param {number} id Идентификатор пользователя в Telegram
+ * @returns {Promise<boolean>} Промис, который резолвится в `false`, если кука жива, и в `true`, если она была успешно обновлена
+ */
+export function checkCookie(id) {
     return new Promise(async (res, rej) => {
-        const cookie = readFileSync('./data/cookie.txt', 'utf8')
+        const user = JSON.parse(readFileSync('./data/linked.json', 'utf8')).find(f => f.tg === id)
+        let cookie = CookieManager.get(id)
+        const request = await fetch(Util.urlWithParams('https://ies.unitech-mo.ru/user', { userid: user.id }), {
+            method: 'get',
+            headers: { cookie }
+        }).catch(err => Util.error(`Cookie check for ${id} was failed:`, err))
+        if (!request) return rej('unavailable')
+        if (request.status == 200) {
+            Util.log(`${id}'s cookie is alive`)
+            res(false)
+            return
+        }
+        cookie = await doLogin(decodeCredentials(user.secret)).catch(err => Util.error('Failed to login in `checkCookie`:', err))
+        if (!cookie) return rej('unavailable')
+        Util.log(`Got new ${id}'s cookie:`, cookie)
+        CookieManager.set(id, cookie)
+        res(true)
+    })
+}
+
+/**
+ * Проверяет состояние главной куки (см. {@link COOKIE|`COOKIE`}) и при необходимости ее обновляет (см. {@link updateMasterCookie|`updateMasterCookie`})
+ * @returns {Promise<string>} Промис, который резолвится в `"ok"`, если кука жива или ее возможно обновить
+ */
+export function checkMasterCookie() {
+    return new Promise(async (res, rej) => {
+        const cookie = CookieManager.get(Static.MASTER_ID)
         COOKIE = cookie
         const request = await fetch(Util.urlWithParams('https://ies.unitech-mo.ru/user', { userid: SELF_ID }), {
             method: 'get',
             headers: { cookie: COOKIE }
-        }).catch(err => Util.error('Cookie check was failed', err))
+        }).catch(err => Util.error('Master cookie check was failed', err))
         if (!request) return rej('unavailable')
 
         if (request.status == 200) {
-            Util.log('Cookie is alive')
+            Util.log('Master cookie is alive')
             res('ok')
             return
         }
         Util.log('Cookie is dead, trying to get the new one')
-        await updateCookie()
+        await updateMasterCookie()
         res('ok')
     })
 }
-export async function updateCookie() {
-    const request = await fetch('https://ies.unitech-mo.ru/auth', {
-        method: 'post',
-        headers: { 'content-type': 'application/x-www-form-urlencoded' },
-        body: new URLSearchParams({
-            login: '[УДАЛЕНО]',
-            pass: '[УДАЛЕНО]',
-            auth: 1,
-            ajax: 1
-        })
-    }).catch(err => Util.error('Login to journal failed', err))
-    if (request?.status != 200) {
-        Util.error('Login to journal failed; status', request.status, request.statusText, 'Next try in 10 seconds')
-        setTimeout(() => checkCookie(), 10000)
+
+/**
+ * Выполняет вход в портал
+ * @param {Credentials} credentials Данные учетной записи пользователя
+ * @returns {Promise<string>} Промис, который резолвится в куку пользователя
+ */
+export function doLogin(credentials) {
+    return new Promise(async (res, rej) => {
+        const request = await fetch('https://ies.unitech-mo.ru/auth', {
+            method: 'post',
+            headers: { 'content-type': 'application/x-www-form-urlencoded' },
+            body: new URLSearchParams({
+                login: credentials.login,
+                pass: credentials.password,
+                auth: 1,
+                ajax: 1,
+                stay_in_system: 1
+            })
+        }).catch(err => Util.error('Login to journal failed', err))
+        if (request?.status != 200) {
+            Util.error('Login to journal failed; status', request.status, request.statusText)
+            rej('unavailable')
+            return
+        }
+        const response = await request.json()
+        if (typeof response.success === 'undefined') {
+            Util.error('Login to journal failed; reason', response.error)
+            rej('failed')
+            return
+        }
+        const cookie = request.headers.get('set-cookie').match(/ft_sess_common=[a-z\d]+;/i)[0]
+        res(cookie)
+    })
+}
+
+/**
+ * Производит выход из учетной записи на портале
+ * @param {string} cookie Кука целевого пользователя
+ * @returns {Promise<boolean>} Промис, который резолвится в `true`, если выход был успешен
+ */
+export function doLogout(cookie) {
+    return new Promise(async (res, rej) => {
+        const request = await fetch('https://ies.unitech-mo.ru/auth?action=logout', {
+            method: 'get',
+            headers: { cookie }
+        }).catch(err => Util.error('Failed to logout from journal', err))
+        if (!request || request?.status !== 200) {
+            Util.error('Failed to logout from journal; status', request.status, request.statusText)
+            rej('unavailable')
+            return
+        }
+        const response = await request.text()
+        const dom = parser.parse(response)
+        const is_logout = dom.querySelector('.log_in_link') === null
+        res(is_logout)
+    })
+}
+
+/**
+ * Асинхронно обновляет главную куку (см. {@link checkMasterCookie|`checkMasterCookie`})
+ */
+export async function updateMasterCookie() {
+    const credentials = {
+        login: Util.getConfig('JOURNAL_LOGIN'),
+        password: Util.getConfig('JOURNAL_PASSWORD')
+    }
+    const cookie = await doLogin(credentials).catch(err => console.error('Getting cookie failed', err))
+    if (!cookie) {
+        Util.error('Getting cookie failed; status', request.status, request.statusText, 'Next try in 10 seconds')
+        setTimeout(() => checkMasterCookie(), 10000)
         return
     }
-    const cookie = request.headers.get('set-cookie').match(/ft_sess_common=[a-z\d]+;/i)[0]
+    CookieManager.set(Static.MASTER_ID, cookie)
     COOKIE = cookie
     Util.log('Got new cookie:', cookie)
-    writeFileSync('./data/cookie.txt', cookie)
 }
+
+/**
+ * Получает данные профиля пользователя на портале
+ * @param {number} id ID пользователя
+ * @returns {Promise<User>} Промис с данными пользователя
+ */
 export function getProfile(id) {
     function handleEntry(element) {
         return element.innerText.split(/\s*:\s+/)[1]
     }
     return new Promise(async (res, rej) => {
-        const is_available = await checkCookie().catch(err => Util.error('Failed to check cookie in `getProfile`:', err))
+        const is_available = await checkMasterCookie().catch(err => Util.error('Failed to check cookie in `getProfile`:', err))
         if (!is_available) return rej('not available')
 
         const request_main = await fetch(Util.urlWithParams('https://ies.unitech-mo.ru/user', { userid: id }), {
@@ -139,6 +374,14 @@ export function getProfile(id) {
         res(data)
     })
 }
+
+/**
+ * Получает оценки указанной группы по данному предмету в данном семестре
+ * @param {string} group Обозначение группы
+ * @param {number} subject Идентификатор предмета
+ * @param {number} semester Номер семестра
+ * @returns {Promise<Subject>} Промис с данными по предмету
+ */
 export function getMarks(group, subject, semester) {
     const cell_types = ['audit', 'lecture', 'practice', 'unknown', 'attest', 'exam']
     return new Promise(async (res, rej) => {
@@ -188,6 +431,12 @@ export function getMarks(group, subject, semester) {
         res(data)
     })
 }
+/**
+ * Сравнивает два массива оценок
+ * @param {Mark[]} before Старый массив
+ * @param {Mark[]} after Новый массив
+ * @returns {MarksComparison} Объект с новыми, удаленными и измененными оценками
+ */
 export function compareMarks(before, after) {
     let removed = before.filter(fl => !after.find(fi => Util.objEqual(fl, fi)))
     let added = after.filter(fl => !before.find(fi => Util.objEqual(fl, fi)))
@@ -210,18 +459,23 @@ export function compareMarks(before, after) {
     })
     return { removed, added, edited }
 }
+
+/**
+ * Получает расписание с точки зрения главной куки
+ * @returns {Promise<Schedule>} Промис с расписанием
+ */
 export function getSchedule() {
     function parseNote(raw) {
         if (!raw) return ''
         const text = parser.parse(raw).innerText
         if (text.match('дистанционном')) return 'Дистант'
         else if (text.match('переносится')) return `Перенос в ауд. ${text.match(/([\d\/б]+)\s?$/)?.[1]}`
-	else if (text.match('преподаватель') && text.match('в аудитории')) return `Заменяет ${text.match(/([а-яё]+\s(?:[а-яё]+\.\s?){1,2})\s/i)?.[1]} в ауд. ${text.match(/([\d\/б]+)\s?$/)?.[1]}`
-	else if (text.match('преподаватель')) return `Заменяет ${text.match(/([а-яё]+\s([а-яё]+\.\s?){1,2})$/i)?.[1]}`
+        else if (text.match('преподаватель') && text.match('в аудитории')) return `Заменяет ${text.match(/([а-яё]+\s(?:[а-яё]+\.\s?){1,2})\s/i)?.[1]} в ауд. ${text.match(/([\d\/б]+)\s?$/)?.[1]}`
+        else if (text.match('преподаватель')) return `Заменяет ${text.match(/([а-яё]+\s([а-яё]+\.\s?){1,2})$/i)?.[1]}`
     }
 
     return new Promise(async (res, rej) => {
-        const is_available = await checkCookie().catch(err => Util.error('Failed to check cookie in `getSchedule`:', err))
+        const is_available = await checkMasterCookie().catch(err => Util.error('Failed to check cookie in `getSchedule`:', err))
         if (!is_available) return rej('not available')
 
         const hour = new Date().getHours()
@@ -256,7 +510,7 @@ export function getSchedule() {
     
             const description = parser.parse(e.lparam)
             const [, teacher, subject] = description.innerText.match(/^([а-яё\s]+)\. ([а-яё\s]+)/i)
-	    result.push({
+            result.push({
                 lesson: e.timenum,
                 time: e.time,
                 subject,
@@ -268,6 +522,12 @@ export function getSchedule() {
         res({ date, lessons: result })
     })
 }
+/**
+ * Получает данные для отчета по пропускам
+ * @param {string} group Обозначение группы
+ * @param {number} semester Номер семестра
+ * @returns {Absence[]} Массив отчетов, отсортированный по уменьшению посещаемости
+ */
 export function getAbsences(group, semester) {
     const linked = JSON.parse(readFileSync('./data/linked.json', 'utf8'))
     const marks = JSON.parse(readFileSync('./data/marks.json', 'utf8'))
@@ -298,9 +558,13 @@ export function getAbsences(group, semester) {
     })
     return data
 }
+/**
+ * Получает новости с главной страницы портала
+ * @returns {Promise<News[]>} Промис с новостями
+ */
 export function getNews() {
     return new Promise(async (res, rej) => {
-        const is_available = await checkCookie().catch(err => Util.error('Failed to check cookie in `getNews`:', err))
+        const is_available = await checkMasterCookie().catch(err => Util.error('Failed to check cookie in `getNews`:', err))
         if (!is_available) return rej('not available')
 
         const request = await fetch('https://ies.unitech-mo.ru/posts', {
@@ -334,9 +598,13 @@ export function getNews() {
         res(posts)
     })
 }
+/**
+ * Получает список дистанционных пар на сегодня с точки зрения главной куки
+ * @returns {Promise<Provision>} Промис со объектом пар "предмет - данные"
+ */
 export function getRemoteProvision() {
     return new Promise(async (res, rej) => {
-        const is_available = await checkCookie().catch(err => Util.error('Failed to check cookie in `getNews`:', err))
+        const is_available = await checkMasterCookie().catch(err => Util.error('Failed to check cookie in `getRemoteProvision`:', err))
         if (!is_available) return rej('not available')
 
         const today = new Date().toLocaleString('ru').slice(0, 10)
@@ -348,8 +616,7 @@ export function getRemoteProvision() {
         }).catch(err => Util.error('Failed to load subjects in `getRemoteProvision`:', err))
         if (!request || request?.status != 200) {
             Util.error('Failed to load the feed in `getSchedule`; status', request?.status, request?.statusText)
-            rej('unavailable')
-            return
+            return rej('unavailable')
         }
 
         const dom = parser.parse(await request.text())
@@ -386,9 +653,18 @@ export function getRemoteProvision() {
         }, 1000)
     })
 }
+
+/**
+ * Скачивает приложенные в расписании файлы для указанной пары, если они есть
+ * @param {number} subject Идентификатор предмета
+ * @param {string} date Дата пары в формате `DD.MM.YYYY`
+ * @param {number} lesson Номер пары (от 1)
+ * @returns {Promise<Attachment[]>} Промис со списком скачанных файлов
+ * @deprecated не используется
+ */
 export function downloadAttachments(subject, date, lesson) {
     return new Promise(async (res, rej) => {
-        const is_available = await checkCookie().catch(err => Util.error('Failed to check cookie in `downloadAttachments`:', err))
+        const is_available = await checkMasterCookie().catch(err => Util.error('Failed to check cookie in `downloadAttachments`:', err))
         if (!is_available) return rej('not available')
 
         const request = await fetch('https://ies.unitech-mo.ru/schedule', {
@@ -444,23 +720,31 @@ export function downloadAttachments(subject, date, lesson) {
     })
 }
 
-export default {
-    SELF_ID,
-    COOKIE,
-    WORK_TYPES,
-    MARK_TYPES,
-    getSemester,
-    getSemesterByGroup,
-    encodeCredentials,
-    decodeCredentials,
-    checkCookie,
-    updateCookie,
-    getProfile,
-    getMarks,
-    compareMarks,
-    getSchedule,
-    getAbsences,
-    getNews,
-    getRemoteProvision,
-    downloadAttachments
+/**
+ * Обходит дистанционные пары от лица указанного пользователя
+ * @param {number} id Идентификатор пользователя в Telegram
+ * @param {string[]} hashes Список хешей дистанционных пар (см. {@link getRemoteProvision|`getRemoteProvision`})
+ * @returns {Promise<{hash:string,ok:boolean}[]>} Промис с массивом результатов обхода
+ */
+export function visitProvision(id, hashes) {
+    return new Promise(async (res, rej) => {
+        const cookie = CookieManager.get(id)
+        const result = []
+        for (let i = 0; i < hashes.length; i++) {
+            const request = await fetch(`https://ies.unitech-mo.ru/translation_show?edu=${hash}`, {
+                method: 'get',
+                headers: { cookie }
+            }).catch(err => Util.error(`Failed to autovisit ${hash} as ${id}:`, err))
+            if (!request || request?.status !== 200) {
+                Util.error(`Failed to autovisit ${hash} as ${id}; status ${request.status} ${request.statusText}`)
+                result.push({ hash, ok: false })
+                continue
+            }
+            const response = await request.text()
+            const dom = parser.parse(response)
+            const is_available = dom.querySelector('.translation_content_wrp h2') === null
+            result.push({ hash, ok: is_available })
+        }
+        res(result)
+    })
 }

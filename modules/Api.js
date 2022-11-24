@@ -1,12 +1,11 @@
 import fetch from 'node-fetch'
+import * as Util from './Util.js'
+import * as Scenes from './Scenes.js'
+import * as Handlers from './Handlers.js'
+import * as Static from './Static.js'
+import * as Stats from './Stats.js'
 
-import Util from './Util.js'
-import Scenes from './Scenes.js'
-import Handlers from './Handlers.js'
-import Static from './Static.js'
-import Stats from './Stats.js'
-
-const TOKEN = '[ДАННЫЕ УДАЛЕНЫ]'
+const TOKEN = Util.getConfig('API_TOKEN')
 let OFFSET = 0
 
 export function query(method, data) {
@@ -27,7 +26,7 @@ export function query(method, data) {
 
 /**
  * Рекурсивная функция для отслеживания новых сообщений
- * @returns {never} `never`
+ * @returns {Promise<never>}
  */
 export async function listenUpdates() {
     Util.log('Listening...')
@@ -74,9 +73,4 @@ export async function listenUpdates() {
     Stats.updateStat('last_update', Date.now())
 
     return listenUpdates()
-}
-
-export default {
-    query,
-    listenUpdates
 }

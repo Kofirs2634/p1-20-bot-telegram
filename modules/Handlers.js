@@ -1,13 +1,12 @@
 import { readFileSync, writeFileSync } from 'fs'
-
-import Static from './Static.js'
-import Scenes from './Scenes.js'
-import Api from './Api.js'
-import Util from './Util.js'
-import Button from './Button.js'
-import Keyboard from './Keyboard.js'
-import Journal from './Journal.js'
-import Stats from './Stats.js'
+import * as Static from './Static.js'
+import * as Scenes from './Scenes.js'
+import * as Api from './Api.js'
+import * as Util from './Util.js'
+import * as Button from './Button.js'
+import * as Keyboard from './Keyboard.js'
+import * as Journal from './Journal.js'
+import * as Stats from './Stats.js'
 
 function handleMessageSendRejection(err, to) {
     Util.error('Alarm, there\'s an error while message sending!', err)
@@ -77,10 +76,10 @@ export function returnButton(text, from, scene) {
     if (text !== Button.BACK) return
     switch (scene) {
         case 'journal':
-        case 'admin':
+        case 'birthdays':
         case 'notifs':
-        case 'birthdays': Scenes.set(from.id, 'main'); break
-        case 'autovisit_online': Scenes.set(from.id, 'journal'); break
+        case 'admin':
+        case 'autovisit': Scenes.set(from.id, 'main'); break
     }
 }
 export function mainMenu(text, from, scene) {
@@ -92,8 +91,7 @@ export function mainMenu(text, from, scene) {
     }).catch(err => handleMessageSendRejection(err, from.id))
 }
 export function birthdaysMenu(text, from, scene) {
-    if (!(scene === 'main' && text === Keyboard.MAIN.keyboard[0][1] /*||
-          text === Button.BACK && scene === 'birthdays'*/)) return
+    if (!(scene === 'main' && text === Keyboard.MAIN.keyboard[0][1])) return
 
     const nearest = findNearestBirthdays()
     Api.query('sendMessage', {
@@ -114,26 +112,10 @@ export function commandBirthdays(text, from) {
         text: Util.escapeNotFormatting(`Ближайшие дни рождения:\n${nearest.map(m => `🔹 *${new Date(m[1]).toLocaleString('ru', Static.DATE_FORMAT_DM)}* — ${m[0]} ${m[2] == 0 ? '(сегодня)' : `(остал${Util.plural(m[2], ['ся', 'ось', 'ось'])} ${Util.pluralString(m[2], ['день', 'дня', 'дней'])})`}`).join('\n')}`),
     }).catch(err => handleMessageSendRejection(err, from.id))
 }
-// export function birthdaysList(text, from, scene) {
-//     if (scene !== 'birthdays' || text !== Keyboard.BIRTHDAYS.keyboard[0][1]) return
-//     Api.query('sendMessage', {
-//         chat_id: from.id,
-//         text: 'Выбери месяц, в котором хочешь посмотреть дни рождения.',
-//         reply_markup: Keyboard.MONTHS
-//     }).catch(err => handleMessageSendRejection(err, from.id))
-//     .then(() => Scenes.set(from.id, 'birthlist'))
-// }
 export function showBirthdays(text, from, scene) {
     const match = text?.match(/^(?:❄️|🌿|🌞|🍁) ([А-Я][а-я]+)$/i)
-    // if (scene !== 'birthlist' || !match) return
     if (scene !== 'birthdays' || !match) return
 
-    // const convert = {
-    //     'Январь': '01', 'Февраль': '02', 'Март': '03',
-    //     'Апрель': '04', 'Май': '05', 'Июнь': '06',
-    //     'Июль': '07', 'Август': '08', 'Сентябрь': '09',
-    //     'Октябрь': '10', 'Ноябрь': '11', 'Декабрь': '12'
-    // }
     const convert = {
         'Зима': ['01', '02', '12'],
         'Весна': ['03', '04', '05'],
@@ -407,20 +389,15 @@ export function giveLinks(text, from, scene) {
     }).catch(err => handleMessageSendRejection(err, from.id))
 }
 export function touchAutovisit(text, from, scene) {
-    if (!(scene === 'journal' && text === Keyboard.JOURNAL.keyboard[4][0])) return
+    if (!(scene === 'main' && text === Keyboard.MAIN.keyboard[1][1])) return
 
-    Api.query('sendMessage', {
-        chat_id: from.id,
-        text: 'Пока эта функция недоступна, но совсем скоро будет! 😇'
-    }).catch(err => handleMessageSendRejection(err, from.id))
-    return
     const linked = JSON.parse(readFileSync('./data/linked.json', 'utf8'))?.find(f => f.tg === from.id)
     if (linked.autovisit) {
         Api.query('sendMessage', {
             chat_id: from.id,
             text: 'Автоотмечалка подключена и ждет дистанта. Уведмоления будут приходить, и убрать их нельзя.\nЧтобы отключить автоотмечалку, выбери нужный пункт клавиатуры.',
             reply_markup: Keyboard.AUTOVISIT
-        }).then(() => Scenes.set(from.id, 'autovisit_online'))
+        }).then(() => Scenes.set(from.id, 'autovisit'))
     } else {
         Api.query('sendMessage', {
             chat_id: from.id,
@@ -429,8 +406,50 @@ export function touchAutovisit(text, from, scene) {
         }).then(() => Scenes.set(from.id, 'autovisit_offline'))
     }
 }
+export function breakAutovisit(text, from, scene) {
+    if (!(scene === 'autovisit' && text === Keyboard.AUTOVISIT.keyboard[0][1])) return
+    Api.query('sendMessage', {
+        chat_id: from.id,
+        text: 'Отключишь автоотмечалку — не сможешь отмечаться на дистанте. Учетные данные будут удалены, но на привязку к журналу это не повлияет. Продолжить?',
+        reply_markup: Keyboard.YESNO
+    }).then(() => Scenes.set(from.id, 'autovisit_break'))
+}
+export async function manualAutovisit(text, from, scene) {
+    if (!(scene === 'autovisit' && text === Keyboard.AUTOVISIT.keyboard[1][0])) return
+    const is_available = await Journal.checkCookie(from.id).catch(err => Util.error(`Failed to check ${from.id}'s cookie in \`manualAutovisit\`:`, err))
+    if (!is_available) return Api.query('sendMessage', {
+        chat_id: from.id,
+        text: 'На данный момент журнал недоступен. Прошу прощения за неудобства, попробуй еще раз позже.'
+    }).catch(err => handleMessageSendRejection(err, from.id))
+
+    const provision = await Journal.getRemoteProvision().catch(err => Util.error('Failed to get remote provision in `manualAutovisit`:', err))
+    if (!provision) return Api.query('sendMessage', {
+        chat_id: from.id,
+        text: 'На данный момент журнал недоступен. Прошу прощения за неудобства, попробуй еще раз позже.'
+    }).catch(err => handleMessageSendRejection(err, from.id))
+    if (Object.keys(provision).length) return Api.query('sendMessage', {
+        chat_id: from.id,
+        text: '😮‍💨 Cегодня дистанционных пар нет.'
+    })
+
+    const hashes = []
+    for (const subj in provision) hashes.push(...provision[subj].map(m => m.hash))
+    const result = await Journal.visitProvision(from.id, hashes)
+    const success = result.filter(f => f.ok).length
+    const forms = ['пару', 'пары', 'пар']
+    Api.query('sendMessage', {
+        chat_id: user.tg,
+        parse_mode: 'MarkdownV2',
+        text: String.prototype.concat(
+            `✅ Успешно отмечено ${Util.pluralString(success, forms)}\n`,
+            `❌ Не удалось зайти на ${Util.pluralString(result.length - success, forms)}:\n`,
+            result.filter(f => !f.ok).map((m, n) => `🔹 [Занятие №${n + 1}](https://ies\\.unitech-mo\\.ru/translation_show?edu=${m.hash})`).join('\n')
+        )
+    }).catch(err => handleMessageSendRejection(err, from.id))
+    //! дописать проверку кук везде, где это нужно
+}
 export function checkStatus(text, from, scene) {
-    if (!(scene === 'main' && text === Keyboard.MAIN.keyboard[1][1])) return
+    if (text !== '/status') return
     Api.query('sendMessage', {
         chat_id: from.id,
         text: '✅ Бот работает.'
@@ -445,7 +464,7 @@ export function helpMenu(text, from, scene) {
         text: (String.prototype.concat(
             'По вопросам и предложениям: @Nerotu\n',
             'Справочная статья \\(пока не написана\\)\n',
-            'Версия 1\\.3\\.1 от 22\\.10\\.2022 \\([лог](https://telegra\\.ph/ruchnoj-bot-p1-20--spisok-izmenenij-10-15)\\)\n\n',
+            'Версия 1\\.4\\.0 от 22\\.11\\.2022 \\([лог](https://telegra\\.ph/ruchnoj-bot-p1-20--spisok-izmenenij-10-15)\\)\n\n',
             '*Дополнительные ссылки*\n',
             '[Сообщество в ВК](https://vk\\.com/p1_20_animals)\n'
         )),
@@ -520,8 +539,8 @@ export async function linking(text, from, scene) {
 }
 export function linkingCancel(text, from, scene) {
     if (!['journal', 'linking_cancel'].includes(scene)) return
-    
-    if (text === Keyboard.JOURNAL.keyboard[5][0] && scene === 'journal') {
+
+    if (text === Keyboard.JOURNAL.keyboard[4][0] && scene === 'journal') {
         Api.query('sendMessage', {
             chat_id: from.id,
             text: 'Разрыв связи с профилем на портале сделает невозможным использование вкладки "Журнал", а также отключит все уведомления. Тебе это точно необходимо?',
@@ -557,14 +576,43 @@ export function linkingCancel(text, from, scene) {
         }
     }
 }
-export function handleAutovisit(text, from, scene) {
-    if (scene === 'autovisit_offline' && text === Keyboard.YESNO.keyboard[0][1]) {
+export async function handleAutovisit(text, from, scene) {
+    if (scene === 'autovisit_break' && text === Keyboard.YESNO.keyboard[0][1]) { // отказ от отключения
+        Api.query('sendMessage', {
+            chat_id: from.id,
+            text: 'Штош...',
+            reply_markup: Keyboard.AUTOVISIT
+        }).then(() => Scenes.set(from.id, 'autovisit'))
+    } else if (scene === 'autovisit_break' && text === Keyboard.YESNO.keyboard[0][0]) { // подтверждение отключения
+        const linked = JSON.parse(readFileSync('./data/linked.json', 'utf8'))
+        const user = linked.find(f => f.tg === from.id)
+
+        // пробуем выйти
+        const logout = await Journal.doLogout(user.cookie).catch(err => Util.error('Failed to logout in `handleAutovisit`:', err))
+        if (typeof logout === 'undefined') return Api.query('sendMessage', {
+            chat_id: from.id,
+            text: 'Отключить автоотмечалку пока нельзя: журнал недоступен. Попробуй еще раз позже.'
+        })
+        if (logout === false) return Api.query('sendMessage', {
+            chat_id: from.id,
+            text: 'По неизвестной причине из журнала выйти не получилось. Попробуй еще раз позже.'
+        })
+
+        // обновляем файлы
+        user.secret = null
+        user.cookie = null
+        Api.query('sendMessage', {
+            chat_id: from.id,
+            text: 'Готово. Приходите еще',
+            reply_markup: Keyboard.MAIN
+        }).then(() => Scenes.set(from.id, 'main'))
+    } else if (scene === 'autovisit_offline' && text === Keyboard.YESNO.keyboard[0][1]) { // отказ от подключения
         Api.query('sendMessage', {
             chat_id: from.id,
             text: '😾',
             reply_markup: Keyboard.JOURNAL
         }).then(() => Scenes.set(from.id, 'journal'))
-    } else if (scene === 'autovisit_offline' && text === Keyboard.YESNO.keyboard[0][0]) {
+    } else if (scene === 'autovisit_offline' && text === Keyboard.YESNO.keyboard[0][0]) { // подтверждение подключения
         Api.query('sendMessage', {
             chat_id: from.id,
             parse_mode: 'MarkdownV2',
@@ -573,22 +621,46 @@ export function handleAutovisit(text, from, scene) {
         }).catch(err => handleMessageSendRejection(err, from.id))
         .then(() => Scenes.set(from.id, 'autovisit_await'))
     } else if (scene === 'autovisit_await') {
-        if (text === Button.CANCEL) {
+        if (text === Button.CANCEL) { // отказ от привязки
             Api.query('sendMessage', {
                 chat_id: from.id,
                 text: 'Да, понимаю, это немного страшно. 🥲',
                 reply_markup: Keyboard.JOURNAL
             }).then(() => Scenes.set(from.id, 'journal'))
-        } else {
+        } else { // получение сообщения
+            // убираем трейлинг-пробелы и грависы
             const input = Util.trim(text.replace(/^`*|`*$/g, ''))
-            if (!input) return
+            if (!input) return Api.query('sendMessage', {
+                chat_id: from.id,
+                text: 'Похоже, твое сообщение пустое. Введи данные и попробуй еще раз.'
+            })
+
+            // пытаемся разделить сообщение на логин и пароль
             const [login, password] = input.split(/\s+|\s*\n+\s*/)
-            if (!login || !password) return
+            if (!login || !password) return Api.query('sendMessage', {
+                chat_id: from.id,
+                text: 'В данных не хватает логина или пароля. Проверь ввод и попробуй еще раз.'
+            })
+
+            // делаем вход
+            const cookie = await Journal.doLogin({ login, password }).catch(err => Util.error('Failed to login in `handleAutovisit`:', err))
+            if (!cookie) return Api.query('sendMessage', {
+                chat_id: from.id,
+                text: 'Не удалось войти на портал. Проверь свои логин и пароль.\nЕсли все точно абсолютно правильно, напиши о проблеме @Nerotu.'
+            })
+
+            // шифруемся и записываем
             const secret = Journal.encodeCredentials(login, password)
             const linked = JSON.parse(readFileSync('./data/linked.json', 'utf8'))
             const user = linked.find(f => f.tg === from.id)
             user.secret = secret
+            user.cookie = cookie
             writeFileSync('./data/linked.json', JSON.stringify(linked), 'utf8')
+            Api.query('sendMessage', {
+                chat_id: from.id,
+                text: 'Автоотмечалка подключена! Логин и пароль уже зашифрованы и спокойно лежат у меня.',
+                reply_markup: Keyboard.AUTOVISIT
+            }).then(() => Scenes.set(from.id, 'autovisit_online'))
         }
     }
 }
@@ -679,38 +751,6 @@ export function sendDevWarn(target, confirm) {
         parse_mode: 'MarkdownV2',
         text: Util.escapeNotFormatting('⚠️ *Ведутся технические работы!* ⚠️\nСейчас мой исходный код получает обновления, и мы очень скоро вернемся в обычный режим. Спасибо за понимание. 🤗')
     }).catch(err => handleMessageSendRejection(err, target))
-}
-
-export default {
-    start,
-    returnButton,
-    mainMenu,
-    birthdaysMenu,
-    commandBirthdays,
-    // birthdaysList,
-    showBirthdays,
-    notificationsMenu,
-    toggleNotification,
-    semesterAverage,
-    absencesReport,
-    journalMenu,
-    refreshProfile,
-    giveSchedule,
-    giveNews,
-    giveRemoteProvision,
-    giveLinks,
-    touchAutovisit,
-    checkStatus,
-    helpMenu,
-    linkingStart,
-    linking,
-    linkingCancel,
-    handleAutovisit,
-    adminMenu,
-    broadcastStart,
-    broadcastMake,
-    showStats,
-    sendDevWarn
 }
 
 // Заглушка для tba-фич

@@ -1,9 +1,10 @@
+import { readFileSync } from 'fs'
 import { MASTER_ID } from './Static.js'
 
 /**
  * Сериализует объект в GET-параметры адресной строки
  * @param {string} url исходный URL
- * @param {object} data объект с параметрами
+ * @param {{[key:string]:string}} data объект с параметрами
  * @returns строка с URL и сериализованными параметрами
  */
 export function urlWithParams(url, data) {
@@ -143,17 +144,26 @@ export function formatName(fullname) {
 
 /**
  * Определяет, принадлежит ли данный ID админу бота
- * @param {*} id Проверяемый ID
+ * @param {number} id Проверяемый ID
  * @returns `true`, если пользователь является админом
  */
 export function isAdmin(id) {
     return id === MASTER_ID
 }
 
+/**
+ * Создает хеш для файла длиной 32 символа
+ * @returns новый хеш
+ */
 export function makeHash() {
     return 'x'.repeat(32).replace(/x/g, () => Math.floor(Math.random() * 0x10).toString(16))
 }
 
+/**
+ * Показывает относительный таймштамп для указанного момента времени
+ * @param {number} ms таймштамп целевого момента в миллисекундах UNIX
+ * @returns строка с относительным таймштампом
+ */
 export function timeago(ms) {
     let now = Date.now()
     let diff = (now - ms) / 1000
@@ -186,6 +196,11 @@ export function timeago(ms) {
     } else return `меньше секунды`
 }
 
+/**
+ * Форматирует время в формате `HH:MM:SS`
+ * @param {number} ms форматируемое число времени в миллисекундах
+ * @returns отформатированная строка
+ */
 export function formatTime(ms) {
     let h = Math.floor(ms / 3600000)
     let m = Math.floor((ms / 60000) - (h * 60))
@@ -193,22 +208,13 @@ export function formatTime(ms) {
     return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`
 }
 
-export default {
-    urlWithParams,
-    trim,
-    plural,
-    pluralString,
-    doubleJoin,
-    log,
-    warn,
-    error,
-    objEqual,
-    decipherEntities,
-    escapeReserved,
-    escapeNotFormatting,
-    formatName,
-    isAdmin,
-    makeHash,
-    timeago,
-    formatTime
+/**
+ * Получает значение указанного ключа из файла с конфигом
+ * @param {string} key Ключ настройки
+ * @returns {string=} Значение ключа
+ */
+export function getConfig(key) {
+    /** @type {[string,string][]} */
+    const config = readFileSync('./CONFIG.yaml', 'utf8').split('\n').map(m => m.split(/\s*:\s/))
+    return config.find(f => f[0] === key)?.[1] || undefined
 }

@@ -1,11 +1,13 @@
+import { getConfig } from './Util.js'
+
 /** Режим отладки */
-export const DEV_MODE = false
+export const DEV_MODE = true
 
 /** Собственный ID бота */
-export const SELF_ID = '[УДАЛЕНО]'
+export const SELF_ID = parseInt(getConfig('BOT_ID'))
 
 /** Мой (хозяйский) ID */
-export const MASTER_ID = '[УДАЛЕНО]'
+export const MASTER_ID = parseInt(getConfig('SELF_ID_TG'))
 
 /** Формат даты в `день месяц` */
 export const DATE_FORMAT_DM = { day: 'numeric', month: 'long', timeZone: 'Europe/Moscow' }
@@ -15,12 +17,3 @@ export const DATE_FORMAT_DMY = { day: 'numeric', month: 'long', year: 'numeric',
 
 /** Эмодзи для сообщения о дне рождения */
 export const BDAY_EMOJIS = ['🎁', '🎈', '🎉', '🎊', '🍾', '🍰', '🎂', '🍻', '🥂', '🔥', '🥳']
-
-export default {
-    DEV_MODE,
-    SELF_ID,
-    MASTER_ID,
-    DATE_FORMAT_DM,
-    DATE_FORMAT_DMY,
-    BDAY_EMOJIS
-}

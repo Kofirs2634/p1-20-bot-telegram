@@ -1,21 +1,35 @@
 import { readFileSync, rmSync, writeFileSync } from 'fs'
-import Util from './Util.js'
-import Static from './Static.js'
-import Journal from './Journal.js'
-import Api from './Api.js'
-import Stats from './Stats.js'
+import * as Util from './Util.js'
+import * as Static from './Static.js'
+import * as Journal from './Journal.js'
+import * as Api from './Api.js'
+import * as Stats from './Stats.js'
 
+/** Микроменеджер для управления флагами отправки */
 const Sent = {}
-Sent.get = function(type) {
+/**
+ * Получает значение флага
+ * @param {string} key ключ флага
+ * @returns {boolean} `true`, если уведомление было отправлено
+ */
+Sent.get = function(key) {
     const { sent } = JSON.parse(readFileSync('./data/notifs.json', 'utf8'))
-    return sent[type]
+    return sent[key]
 }
-Sent.set = function(type, state) {
+/**
+ * Устанавливает значение флага
+ * @param {string} key ключ флага
+ * @param {boolean} state статус флага. `true`, если уведомление было отправлено
+ */
+Sent.set = function(key, state) {
     const notifs = JSON.parse(readFileSync('./data/notifs.json', 'utf8'))
-    notifs.sent[type] = state
+    notifs.sent[key] = state
     writeFileSync('./data/notifs.json', JSON.stringify(notifs))
 }
 
+/**
+ * Проверяет сегодняшний день на дни рождения. Интервал — 1 минута
+ */
 export function birthdaySpectator() {
     const flag = Sent.get('bdays')
     // скидываем флаг отправки в полночь
@@ -54,6 +68,9 @@ export function birthdaySpectator() {
     Sent.set('bdays', true)
 }
 
+/**
+ * Осуществляет отлов оценок в журнале. Интервал — 10 минут
+ */
 export async function journalSpectator() {
     // не дергаем журнал с 11 вечера до 9 утра
     const now = new Date()
@@ -76,8 +93,8 @@ export async function journalSpectator() {
     let done_request_counter = 0
     let request_counter = 0
 
-    // const is_available = await Journal.checkCookie().catch(err => Util.error('Failed to check cookie in `journalSpectator`:', err))
-    // if (!is_available) return
+    const is_available = await Journal.checkMasterCookie().catch(err => Util.error('Failed to check master cookie in `journalSpectator`:', err))
+    if (!is_available) return
 
     groups.forEach(group => {
         const semester = Journal.getSemesterByGroup(group)
@@ -163,6 +180,9 @@ export async function journalSpectator() {
     }, 1000)
 }
 
+/**
+ * Проверяет наличие на сегодня дистанционных пар. Интервал — 10 минут
+ */
 export async function provisionSpectator() {
     const flag = Sent.get('provision')
     // скидываем флаг отправки в полночь
@@ -174,11 +194,21 @@ export async function provisionSpectator() {
     if (now.getHours() >= 22 || now.getHours() < 9) return // не дергаем журнал с 10 вечера до 9 утра
     if (now.getHours() < 9) return // разрешаем отправку не раньше 9 утра
 
+    const is_available = await Journal.checkMasterCookie().catch(err => Util.error('Failed to check master cookie in `provisionSpectator`:', err))
+    if (!is_available) return
+
     const data = await Journal.getRemoteProvision().catch(err => Util.error('Failed to get remote provision in `provisionSpectator`:', err))
     if (!data) return
     if (!Object.keys(data).length) return
+    const hashes = []
     const rows = []
-    for (const subj in data) rows.push(`*${Util.escapeReserved(subj)}*\n${data[subj].map(m => `🔹 [${Util.escapeReserved(Util.decipherEntities(m.theme))}](https://ies.unitech-mo.ru/translation_show?edu=${m.hash})`).join('\n')}`)
+    for (const subj in data) {
+        const mapped = data[subj].map(m => {
+            hashes.push(m.hash)
+            return `🔹 [${Util.escapeReserved(Util.decipherEntities(m.theme))}](https://ies\\.unitech-mo\\.ru/translation_show?edu=${m.hash})`
+        })
+        rows.push(`*${Util.escapeReserved(subj)}*\n${mapped.join('\n')}`)
+    }
 
     Util.log('Sending provision notifications...')
     notifs.forEach((id, offset) => {
@@ -191,8 +221,42 @@ export async function provisionSpectator() {
             }).catch(err => Util.error(`Provision notification to ${id} failed:`, err))
         }, offset * 40)
     })
+
+    Util.log('Autovisiting remote lessons...')
+    const linked = JSON.parse(readFileSync('./data/linked.json', 'utf8')).filter(f => f.secret && f.cookie)
+    const forms = ['пару', 'пары', 'пар']
+    linked.forEach((user, offset) => {
+        setTimeout(async () => {
+            const is_available = await Journal.checkCookie(user.tg).catch(err => Util.error(`Failed to check ${user.tg}'s cookie in \`provisionSpectator\`:`, err))
+            if (!is_available) return Api.query('sendMessage', {
+                chat_id: user.tg,
+                text: '❗️ Автоотмечалка не смогла отработать, поскольку журнал не позволил произвести вход. Попробуй использовать "Ручной обход" или самостоятельно отметиться на парах. Прошу прощения за неудобства.'
+            })
+
+            const result = await Journal.visitProvision(user.tg, hashes)
+            const success = result.filter(f => f.ok).length
+            Api.query('sendMessage', {
+                chat_id: user.tg,
+                parse_mode: 'MarkdownV2',
+                text: String.prototype.concat(
+                    `👉 *Отчет автоотмечалки на ${Util.pluralString(result.length, forms)}*\n`,
+                    `✅ Успешно отмечено ${Util.pluralString(success, forms)}\n`,
+                    `❌ Не удалось зайти на ${Util.pluralString(result.length - success, forms)}:\n`,
+                    result.filter(f => !f.ok).map((m, n) => `🔹 [Занятие №${n + 1}](https://ies\\.unitech-mo\\.ru/translation_show?edu=${m.hash})`).join('\n'),
+                    `_Для полной уверенности рекомендуется воспользоваться функцией "Ручной обход" еще раз в течение дня\\._`
+                )
+            })
+        }, offset * 40)
+    })
+
     Sent.set('provision', true)
+    //! написать функции обхода дистанта и обязательно отдебажить
 }
+
+/**
+ * Вычищает старые файлы из кеша
+ * @deprecated не используется
+ */
 export function filePurger() {
     Util.log('Checking files to purge...')
     const cache = JSON.parse(readFileSync('./data/files.json'))
@@ -212,10 +276,12 @@ export function filePurger() {
 }
 
 let heartbeat_warn = false
+/**
+ * Проверяет, работает ли функция получения сообщений от Telegram. Интервал — 1 минута
+ */
 export function heartbeat() {
     const { last_update } = Stats.getStats()
-    if (last_update + 5 * 60e3 > Date.now()) return
-    else heartbeat_warn = false
+    if (last_update + 5 * 60e3 > Date.now()) { heartbeat_warn = false; return }
     if (heartbeat_warn) return
     Util.warn(`Last update was received more than 5 minutes ago. Bot is down?`)
     Api.query('sendMessage', {
@@ -223,12 +289,4 @@ export function heartbeat() {
         text: `❌ Последнее обновление от Telegram API было выполнено более 5 минут назад. Нужна проверка состояния бота.`
     }).catch(() => heartbeat_warn = false)
     .then(() => heartbeat_warn = true)
-}
-
-export default {
-    birthdaySpectator,
-    journalSpectator,
-    provisionSpectator,
-    filePurger,
-    heartbeat
 }
