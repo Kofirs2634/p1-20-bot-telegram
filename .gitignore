@@ -1,0 +1,10 @@
+# зависимости
+node_modules/
+
+# тесты разработки
+tests/
+
+# конфиденциальные данные
+data/
+files/
+CONFIG.yaml
