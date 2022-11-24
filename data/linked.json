@@ -1,0 +1,13 @@
+[
+    {
+        "id": "число",
+        "first_name": "строка",
+        "last_name": "строка",
+        "birthday": "дата в формате ISO",
+        "group": "строка",
+        "avatar": "URL-строка",
+        "rating": "число",
+        "tg": "число или null",
+        "secret": "строка или null"
+    }
+]
