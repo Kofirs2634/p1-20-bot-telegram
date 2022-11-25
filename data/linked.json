@@ -8,6 +8,7 @@
         "avatar": "URL-строка",
         "rating": "число",
         "tg": "число или null",
-        "secret": "строка или null"
+        "secret": "строка или null",
+        "cookie": "строка или null"
     }
 ]
