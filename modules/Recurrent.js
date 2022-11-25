@@ -115,13 +115,13 @@ export async function journalSpectator() {
                 const emoji_base = typeof e.mark === 'number' ? Math.floor(e.mark) : e.mark
                 if (!broadcast[e.stud]) broadcast[e.stud] = {}
                 if (!broadcast[e.stud][data.subject[1]]) broadcast[e.stud][data.subject[1]] = []
-                broadcast[e.stud][data.subject[1]].push(`${Journal.MARK_TYPES[emoji_base]?.[0] || Journal.MARK_TYPES.UNK} ${e.mark} за ${Journal.WORK_TYPES[e.type][0]} от ${e.date}`)
+                broadcast[e.stud][data.subject[1]].push(`${Journal.MARK_TYPES[emoji_base]?.[0] || Journal.MARK_TYPES.UNK[0]} ${e.mark} за ${Journal.WORK_TYPES[e.type][0]} от ${e.date}`)
             })
             diff.edited.forEach(e => {
                 const emoji_base = typeof e.mark.after === 'number' ? Math.floor(e.mark.after) : e.mark.after
                 if (!broadcast[e.stud]) broadcast[e.stud] = {}
                 if (!broadcast[e.stud][data.subject[1]]) broadcast[e.stud][data.subject[1]] = []
-                broadcast[e.stud][data.subject[1]].push(`${Journal.MARK_TYPES[emoji_base]?.[0] || Journal.MARK_TYPES.UNK} ${e.mark.before} → ${e.mark.after} за ${Journal.WORK_TYPES[e.type][0]} от ${e.date}`)
+                broadcast[e.stud][data.subject[1]].push(`${Journal.MARK_TYPES[emoji_base]?.[0] || Journal.MARK_TYPES.UNK[0]} ${e.mark.before} → ${e.mark.after} за ${Journal.WORK_TYPES[e.type][0]} от ${e.date}`)
             })
             diff.removed.forEach(e => {
                 if (!broadcast[e.stud]) broadcast[e.stud] = {}
@@ -228,7 +228,7 @@ export async function provisionSpectator() {
     linked.forEach((user, offset) => {
         setTimeout(async () => {
             const is_available = await Journal.checkCookie(user.tg).catch(err => Util.error(`Failed to check ${user.tg}'s cookie in \`provisionSpectator\`:`, err))
-            if (!is_available) return Api.query('sendMessage', {
+            if (typeof is_available === 'undefined') return Api.query('sendMessage', {
                 chat_id: user.tg,
                 text: '❗️ Автоотмечалка не смогла отработать, поскольку журнал не позволил произвести вход. Попробуй использовать "Ручной обход" или самостоятельно отметиться на парах. Прошу прощения за неудобства.'
             })
@@ -241,7 +241,7 @@ export async function provisionSpectator() {
                 text: String.prototype.concat(
                     `👉 *Отчет автоотмечалки на ${Util.pluralString(result.length, forms)}*\n`,
                     `✅ Успешно отмечено ${Util.pluralString(success, forms)}\n`,
-                    `❌ Не удалось зайти на ${Util.pluralString(result.length - success, forms)}:\n`,
+                    `❌ Не удалось зайти на ${Util.pluralString(result.length - success, forms)}${result.length === success ? '' : ':'}\n`,
                     result.filter(f => !f.ok).map((m, n) => `🔹 [Занятие №${n + 1}](https://ies\\.unitech-mo\\.ru/translation_show?edu=${m.hash})`).join('\n'),
                     `_Для полной уверенности рекомендуется воспользоваться функцией "Ручной обход" еще раз в течение дня\\._`
                 )

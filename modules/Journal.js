@@ -298,7 +298,7 @@ export function doLogout(cookie) {
         }
         const response = await request.text()
         const dom = parser.parse(response)
-        const is_logout = dom.querySelector('.log_in_link') === null
+        const is_logout = dom.querySelector('.log_in_link') !== null
         res(is_logout)
     })
 }
@@ -311,9 +311,9 @@ export async function updateMasterCookie() {
         login: Util.getConfig('JOURNAL_LOGIN'),
         password: Util.getConfig('JOURNAL_PASSWORD')
     }
-    const cookie = await doLogin(credentials).catch(err => console.error('Getting cookie failed', err))
+    const cookie = await doLogin(credentials).catch(err => console.error('Getting cookie failed:', err))
     if (!cookie) {
-        Util.error('Getting cookie failed; status', request.status, request.statusText, 'Next try in 10 seconds')
+        Util.error('Getting cookie failed. Next try in 10 seconds')
         setTimeout(() => checkMasterCookie(), 10000)
         return
     }
@@ -731,6 +731,7 @@ export function visitProvision(id, hashes) {
         const cookie = CookieManager.get(id)
         const result = []
         for (let i = 0; i < hashes.length; i++) {
+            const hash = hashes[i]
             const request = await fetch(`https://ies.unitech-mo.ru/translation_show?edu=${hash}`, {
                 method: 'get',
                 headers: { cookie }

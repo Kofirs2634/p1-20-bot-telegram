@@ -35,7 +35,6 @@ export async function listenUpdates() {
         allowed_updates: ['message'],
         offset: OFFSET
     }).catch(err => Util.error('Failed to fetch updates:', err))
-    // console.log(data)
     if (typeof data === 'undefined') {
         Util.log('Updates request failed (undefined value), trying to return to recursion')
         return listenUpdates()
@@ -62,7 +61,7 @@ export async function listenUpdates() {
             for (const handler in Handlers) {
                 if (typeof Handlers[handler] !== 'function') continue
                 Handlers[handler](text, from, scene)
-                if (handler == 'returnButton') scene = Scenes.get(from.id)
+                if (handler == '_returnButton') scene = Scenes.get(from.id)
             }
         } catch (err) {
             Util.error(`Caught an error while handling message:`, err)

@@ -72,15 +72,10 @@ export function start(text, from) {
     }).catch(err => handleMessageSendRejection(err, from.id))
     .then(() => Scenes.set(from.id, 'main'))
 }
-export function returnButton(text, from, scene) {
+export function _returnButton(text, from, scene) {
     if (text !== Button.BACK) return
-    switch (scene) {
-        case 'journal':
-        case 'birthdays':
-        case 'notifs':
-        case 'admin':
-        case 'autovisit': Scenes.set(from.id, 'main'); break
-    }
+    const back_scenes = ['journal', 'birthdays', 'notifs', 'admin', 'autovisit']
+    if (back_scenes.includes(scene)) Scenes.set(from.id, 'main')
 }
 export function mainMenu(text, from, scene) {
     if (!(scene === 'main' && text === Button.BACK)) return
@@ -91,7 +86,8 @@ export function mainMenu(text, from, scene) {
     }).catch(err => handleMessageSendRejection(err, from.id))
 }
 export function birthdaysMenu(text, from, scene) {
-    if (!(scene === 'main' && text === Keyboard.MAIN.keyboard[0][1])) return
+    if (!(scene === 'main' && text === Keyboard.MAIN.keyboard[0][1] /*||
+          text === Button.BACK && scene === 'birthdays'*/)) return
 
     const nearest = findNearestBirthdays()
     Api.query('sendMessage', {
@@ -392,10 +388,10 @@ export function touchAutovisit(text, from, scene) {
     if (!(scene === 'main' && text === Keyboard.MAIN.keyboard[1][1])) return
 
     const linked = JSON.parse(readFileSync('./data/linked.json', 'utf8'))?.find(f => f.tg === from.id)
-    if (linked.autovisit) {
+    if (linked.secret) {
         Api.query('sendMessage', {
             chat_id: from.id,
-            text: 'Автоотмечалка подключена и ждет дистанта. Уведмоления будут приходить, и убрать их нельзя.\nЧтобы отключить автоотмечалку, выбери нужный пункт клавиатуры.',
+            text: 'Автоотмечалка подключена и ждет дистанта. Уведомления будут приходить, и убрать их нельзя.\nЧтобы отключить автоотмечалку, выбери нужный пункт клавиатуры.',
             reply_markup: Keyboard.AUTOVISIT
         }).then(() => Scenes.set(from.id, 'autovisit'))
     } else {
@@ -417,7 +413,7 @@ export function breakAutovisit(text, from, scene) {
 export async function manualAutovisit(text, from, scene) {
     if (!(scene === 'autovisit' && text === Keyboard.AUTOVISIT.keyboard[1][0])) return
     const is_available = await Journal.checkCookie(from.id).catch(err => Util.error(`Failed to check ${from.id}'s cookie in \`manualAutovisit\`:`, err))
-    if (!is_available) return Api.query('sendMessage', {
+    if (typeof is_available === 'undefined') return Api.query('sendMessage', {
         chat_id: from.id,
         text: 'На данный момент журнал недоступен. Прошу прощения за неудобства, попробуй еще раз позже.'
     }).catch(err => handleMessageSendRejection(err, from.id))
@@ -427,7 +423,8 @@ export async function manualAutovisit(text, from, scene) {
         chat_id: from.id,
         text: 'На данный момент журнал недоступен. Прошу прощения за неудобства, попробуй еще раз позже.'
     }).catch(err => handleMessageSendRejection(err, from.id))
-    if (Object.keys(provision).length) return Api.query('sendMessage', {
+
+    if (!Object.keys(provision).length) return Api.query('sendMessage', {
         chat_id: from.id,
         text: '😮‍💨 Cегодня дистанционных пар нет.'
     })
@@ -438,15 +435,14 @@ export async function manualAutovisit(text, from, scene) {
     const success = result.filter(f => f.ok).length
     const forms = ['пару', 'пары', 'пар']
     Api.query('sendMessage', {
-        chat_id: user.tg,
+        chat_id: from.id,
         parse_mode: 'MarkdownV2',
         text: String.prototype.concat(
             `✅ Успешно отмечено ${Util.pluralString(success, forms)}\n`,
-            `❌ Не удалось зайти на ${Util.pluralString(result.length - success, forms)}:\n`,
+            `❌ Не удалось зайти на ${Util.pluralString(result.length - success, forms)}${result.length === success ? '' : ':'}\n`,
             result.filter(f => !f.ok).map((m, n) => `🔹 [Занятие №${n + 1}](https://ies\\.unitech-mo\\.ru/translation_show?edu=${m.hash})`).join('\n')
         )
     }).catch(err => handleMessageSendRejection(err, from.id))
-    //! дописать проверку кук везде, где это нужно
 }
 export function checkStatus(text, from, scene) {
     if (text !== '/status') return
@@ -606,6 +602,7 @@ export async function handleAutovisit(text, from, scene) {
             text: 'Готово. Приходите еще',
             reply_markup: Keyboard.MAIN
         }).then(() => Scenes.set(from.id, 'main'))
+        writeFileSync('./data/linked.json', JSON.stringify(linked), 'utf8')
     } else if (scene === 'autovisit_offline' && text === Keyboard.YESNO.keyboard[0][1]) { // отказ от подключения
         Api.query('sendMessage', {
             chat_id: from.id,
@@ -660,7 +657,7 @@ export async function handleAutovisit(text, from, scene) {
                 chat_id: from.id,
                 text: 'Автоотмечалка подключена! Логин и пароль уже зашифрованы и спокойно лежат у меня.',
                 reply_markup: Keyboard.AUTOVISIT
-            }).then(() => Scenes.set(from.id, 'autovisit_online'))
+            }).then(() => Scenes.set(from.id, 'autovisit'))
         }
     }
 }

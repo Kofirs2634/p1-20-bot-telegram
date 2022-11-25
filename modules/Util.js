@@ -111,6 +111,7 @@ export function decipherEntities(str) {
         quot: '"', apos: '\'', ndash: '–', mdash: '—'
     }
     return str.replace(/&([a-z]+);/g, (_, name) => dict[name] || `&${name};`)
+        .replace(/&#8230;/g, '…')
 }
 
 /**
