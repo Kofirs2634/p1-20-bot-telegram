@@ -8,7 +8,7 @@ import { MASTER_ID } from './Static.js'
  * @returns строка с URL и сериализованными параметрами
  */
 export function urlWithParams(url, data) {
-    return `${url}?${new URLSearchParams(data)}`
+  return `${url}?${new URLSearchParams(data)}`
 }
 
 /**
@@ -17,7 +17,7 @@ export function urlWithParams(url, data) {
  * @returns строка с удаленными пробелами
  */
 export function trim(str) {
-    return str.replace(/^\s+|\s+$/g, '')
+  return str.replace(/^\s+|\s+$/g, '')
 }
 
 /**
@@ -27,10 +27,10 @@ export function trim(str) {
  * @returns форма множественного числа
  */
 export function plural(x, forms) {
-    if (11 <= x && x <= 19) return forms[2]
-    else if (x % 10 == 1) return forms[0]
-    else if (2 <= x % 10 && x % 10 <= 4) return forms[1]
-    else return forms[2]
+  if (11 <= x && x <= 19) return forms[2]
+  else if (x % 10 == 1) return forms[0]
+  else if (2 <= x % 10 && x % 10 <= 4) return forms[1]
+  else return forms[2]
 }
 
 /**
@@ -40,7 +40,7 @@ export function plural(x, forms) {
  * @returns число объектов вместе с формой множественного числа
  */
 export function pluralString(x, forms) {
-    return `${x} ${plural(x, forms)}`
+  return `${x} ${plural(x, forms)}`
 }
 
 /**
@@ -51,7 +51,7 @@ export function pluralString(x, forms) {
  * @returns получаенная из массива строка
  */
 export function doubleJoin(array, sep, last_sep) {
-    return array.slice(0, -1).join(sep) + last_sep + array[array.length - 1]
+  return array.slice(0, -1).join(sep) + last_sep + array[array.length - 1]
 }
 
 /**
@@ -59,7 +59,7 @@ export function doubleJoin(array, sep, last_sep) {
  * @param {...any} args аргументы вывода
  */
 export function log(...args) {
-    console.log(`[${new Date().toISOString()}]`, ...args)
+  console.log(`[${new Date().toISOString()}]`, ...args)
 }
 
 /**
@@ -67,7 +67,7 @@ export function log(...args) {
  * @param {...any} args аргументы вывода
  */
  export function warn(...args) {
-    console.log(`[${new Date().toISOString()}] [WARN]`, ...args)
+  console.log(`[${new Date().toISOString()}] [WARN]`, ...args)
 }
 
 /**
@@ -75,7 +75,7 @@ export function log(...args) {
  * @param {...any} args аргументы вывода
  */
  export function error(...args) {
-    console.log(`[${new Date().toISOString()}] [ERROR]`, ...args)
+  console.log(`[${new Date().toISOString()}] [ERROR]`, ...args)
 }
 
 /**
@@ -85,19 +85,19 @@ export function log(...args) {
  * @returns `true`, если объекты равны, `false` в противном случае
  */
 export function objEqual(obj1, obj2) {
-    if (typeof obj1 !== 'object' || typeof obj2 !== 'object') return false
-    const keys1 = Object.keys(obj1)
-    const keys2 = Object.keys(obj2)
-    if (keys1.length != keys2.length) return false
-    const matching1 = keys1.filter(f => !keys2.includes(f))
-    const matching2 = keys2.filter(f => !keys1.includes(f))
-    if (matching1.length || matching2.length) return false
-    let eq = true
-    keys1.forEach(key => {
-        if (!eq) return
-        if (obj1[key] != obj2[key]) eq = false
-    })
-    return eq
+  if (typeof obj1 !== 'object' || typeof obj2 !== 'object') return false
+  const keys1 = Object.keys(obj1)
+  const keys2 = Object.keys(obj2)
+  if (keys1.length != keys2.length) return false
+  const matching1 = keys1.filter(f => !keys2.includes(f))
+  const matching2 = keys2.filter(f => !keys1.includes(f))
+  if (matching1.length || matching2.length) return false
+  let eq = true
+  keys1.forEach(key => {
+    if (!eq) return
+    if (obj1[key] != obj2[key]) eq = false
+  })
+  return eq
 }
 
 /**
@@ -106,12 +106,12 @@ export function objEqual(obj1, obj2) {
  * @returns раскодированная строка
  */
 export function decipherEntities(str) {
-    const dict = {
-        nbsp: ' ', lt: '<', gt: '>', amp: '&',
-        quot: '"', apos: '\'', ndash: '–', mdash: '—'
-    }
-    return str.replace(/&([a-z]+);/g, (_, name) => dict[name] || `&${name};`)
-        .replace(/&#8230;/g, '…')
+  const dict = {
+    nbsp: ' ', lt: '<', gt: '>', amp: '&',
+    quot: '"', apos: '\'', ndash: '–', mdash: '—'
+  }
+  return str.replace(/&([a-z]+);/g, (_, name) => dict[name] || `&${name};`)
+    .replace(/&#8230;/g, '…')
 }
 
 /**
@@ -120,7 +120,7 @@ export function decipherEntities(str) {
  * @returns экранированная строка
  */
 export function escapeReserved(str) {
-    return str.replace(/([_*\[\]\(\)~`>#\+\-=\|\{\}\.!])/g, '\\$1')
+  return str.replace(/([_*\[\]\(\)~`>#\+\-=\|\{\}\.!])/g, '\\$1')
 }
 
 /**
@@ -129,7 +129,7 @@ export function escapeReserved(str) {
  * @returns экранированная строка
  */
 export function escapeNotFormatting(str) {
-    return str.replace(/([\[\]\(\)>#\+\-=\{\}\.!])/g, '\\$1')
+  return str.replace(/([\[\]\(\)>#\+\-=\{\}\.!])/g, '\\$1')
 }
 
 /**
@@ -138,9 +138,9 @@ export function escapeNotFormatting(str) {
  * @returns Краткое имя
  */
 export function formatName(fullname) {
-    const parts = fullname.split(/\s+/g)
-    if (parts.length < 2) return fullname
-    else return `${parts[0]} ${parts.slice(1).map(m => `${m.slice(0, 1)}.`).join(' ')}`
+  const parts = fullname.split(/\s+/g)
+  if (parts.length < 2) return fullname
+  else return `${parts[0]} ${parts.slice(1).map(m => `${m.slice(0, 1)}.`).join(' ')}`
 }
 
 /**
@@ -149,7 +149,7 @@ export function formatName(fullname) {
  * @returns `true`, если пользователь является админом
  */
 export function isAdmin(id) {
-    return id === MASTER_ID
+  return id === MASTER_ID
 }
 
 /**
@@ -157,7 +157,7 @@ export function isAdmin(id) {
  * @returns новый хеш
  */
 export function makeHash() {
-    return 'x'.repeat(32).replace(/x/g, () => Math.floor(Math.random() * 0x10).toString(16))
+  return 'x'.repeat(32).replace(/x/g, () => Math.floor(Math.random() * 0x10).toString(16))
 }
 
 /**
@@ -166,35 +166,35 @@ export function makeHash() {
  * @returns строка с относительным таймштампом
  */
 export function timeago(ms) {
-    let now = Date.now()
-    let diff = (now - ms) / 1000
-    let forms = {
-        s: ['секунду', 'секунды', 'секунд'],
-        m: ['минуту', 'минуты', 'минут'],
-        h: ['час', 'часа', 'часов'],
-        d: ['день', 'дня', 'дней'],
-        mo: ['месяц', 'месяца', 'месяцев'],
-        y: ['год', 'года', 'лет']
-    }
-    if (diff / 31536e3 >= 1) {
-        let y = Math.floor(diff / 31536e3)
-        return pluralString(y, forms.y)
-    } else if (diff / 2678400 >= 1) {
-        let mo = Math.floor(diff / 2678400)
-        return pluralString(mo, forms.mo)
-    } else if (diff / 86400 >= 1) {
-        let d = Math.floor(diff / 86400)
-        return pluralString(d, forms.d)
-    } else if (diff / 3600 >= 1) {
-        let h = Math.floor(diff / 3600)
-        return pluralString(h, forms.h)
-    } else if (diff / 60 >= 1) {
-        let m = Math.floor(diff / 60)
-        return pluralString(m, forms.m)
-    } else if (diff >= 1) {
-        let s = Math.floor(diff)
-        return pluralString(s, forms.s)
-    } else return `меньше секунды`
+  let now = Date.now()
+  let diff = (now - ms) / 1000
+  let forms = {
+    s: ['секунду', 'секунды', 'секунд'],
+    m: ['минуту', 'минуты', 'минут'],
+    h: ['час', 'часа', 'часов'],
+    d: ['день', 'дня', 'дней'],
+    mo: ['месяц', 'месяца', 'месяцев'],
+    y: ['год', 'года', 'лет']
+  }
+  if (diff / 31536e3 >= 1) {
+    let y = Math.floor(diff / 31536e3)
+    return pluralString(y, forms.y)
+  } else if (diff / 2678400 >= 1) {
+    let mo = Math.floor(diff / 2678400)
+    return pluralString(mo, forms.mo)
+  } else if (diff / 86400 >= 1) {
+    let d = Math.floor(diff / 86400)
+    return pluralString(d, forms.d)
+  } else if (diff / 3600 >= 1) {
+    let h = Math.floor(diff / 3600)
+    return pluralString(h, forms.h)
+  } else if (diff / 60 >= 1) {
+    let m = Math.floor(diff / 60)
+    return pluralString(m, forms.m)
+  } else if (diff >= 1) {
+    let s = Math.floor(diff)
+    return pluralString(s, forms.s)
+  } else return `меньше секунды`
 }
 
 /**
@@ -203,10 +203,10 @@ export function timeago(ms) {
  * @returns отформатированная строка
  */
 export function formatTime(ms) {
-    let h = Math.floor(ms / 3600000)
-    let m = Math.floor((ms / 60000) - (h * 60))
-    let s = Math.floor(ms % 60000 / 1000)
-    return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`
+  let h = Math.floor(ms / 3600000)
+  let m = Math.floor((ms / 60000) - (h * 60))
+  let s = Math.floor(ms % 60000 / 1000)
+  return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`
 }
 
 /**
@@ -215,7 +215,7 @@ export function formatTime(ms) {
  * @returns {string=} Значение ключа
  */
 export function getConfig(key) {
-    /** @type {[string,string][]} */
-    const config = readFileSync('./CONFIG.yaml', 'utf8').split('\n').map(m => m.split(/\s*:\s/))
-    return config.find(f => f[0] === key)?.[1] || undefined
+  /** @type {[string,string][]} */
+  const config = readFileSync('./CONFIG.yaml', 'utf8').split('\n').map(m => m.split(/\s*:\s/))
+  return config.find(f => f[0] === key)?.[1] || undefined
 }

@@ -1,7 +1,7 @@
 import { getConfig } from './Util.js'
 
 /** Режим отладки */
-export const DEV_MODE = true
+export const DEV_MODE = false
 
 /** Собственный ID бота */
 export const SELF_ID = parseInt(getConfig('BOT_ID'))

@@ -1,10 +1,14 @@
 # зависимости
-node_modules/
+node_modules
 
 # тесты разработки
-tests/
+tests
 
 # конфиденциальные данные
-data/
-files/
+data
+files
 CONFIG.yaml
+
+# мак генерит забавные вещи
+.DS_Store
+*/.DS_Store
